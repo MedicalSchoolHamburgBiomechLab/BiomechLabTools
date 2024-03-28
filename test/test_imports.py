@@ -26,6 +26,12 @@ class TestImports(unittest.TestCase):
         except ImportError as e:
             self.fail(f"Failed to import scipy: {e}")
 
+    def test_import_dotenv(self):
+        try:
+            import dotenv
+        except ImportError as e:
+            self.fail(f"Failed to import dotenv: {e}")
+
 
 if __name__ == '__main__':
     unittest.main()
