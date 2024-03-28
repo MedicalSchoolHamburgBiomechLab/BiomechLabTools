@@ -1,3 +1,4 @@
+import warnings
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
@@ -12,6 +13,13 @@ from signal_analysis.non_linear.false_nearest_neighbours import false_nearest_ne
 from signal_analysis.non_linear.mutual_information import minimum_average_mutual_information
 from utils.convenience import process_on_dataframe, DEBUG
 from utils.file_handling import get_participant_folder_list, load_dataframe, save_dataframe
+
+
+def calculate_divergence_exponent(divergence_curve: np.ndarray, fit_interval: tuple):
+    x = np.arange(fit_interval[0], fit_interval[1])
+    y = divergence_curve[fit_interval[0]:fit_interval[1]]
+    beta = np.polyfit(x, y, 1)
+    return beta[0] * len(divergence_curve)
 
 
 @dataclass
@@ -31,8 +39,8 @@ class LDSAnalysis:
     _dE: int = None
     _state_spaces: pd.DataFrame = None
     _divergence_curves: pd.DataFrame = None  # (101x1) divergence curves for each participant and condition
-    _fit_interval: tuple[int, int] = None
-    _lyapunov_exponents: pd.DataFrame = None  # (1x1) lyapunov exponents for each participant and condition
+    _fit_interval: tuple[int, int] = None  # (start, end) for linear fit of divergence curves for divergence exponent
+    _divergence_exponents: pd.DataFrame = None  # (1x1) divergence exponents for each participant and condition
 
     def __post_init__(self):
         self._validate_input()
@@ -59,7 +67,7 @@ class LDSAnalysis:
         self._path_embedding_dimensions = self.path_data_out.joinpath(f'embedding_dimensions_{self.sensor_location}.json')
         self._path_state_spaces = self.path_data_out.joinpath(f'state_spaces_{self.sensor_location}.pkl')
         self._path_divergence_curves = self.path_data_out.joinpath(f'divergence_curves_{self.sensor_location}.pkl')
-        self._path_lyapunov_exponents = self.path_data_out.joinpath(f'lyapunov_exponents_{self.sensor_location}.pkl')
+        self._path_divergence_exponents = self.path_data_out.joinpath(f'divergence_exponents_{self.sensor_location}.xlsx')
 
     def _init_from_environment(self):
         self._participant_ids = get_participant_folder_list(self.path_data_in)
@@ -89,8 +97,8 @@ class LDSAnalysis:
             self._state_spaces = load_dataframe(path_filename=self._path_state_spaces)
         if self._path_divergence_curves.exists():
             self._divergence_curves = load_dataframe(path_filename=self._path_divergence_curves)
-        if self._path_lyapunov_exponents.exists():
-            self._lyapunov_exponents = load_dataframe(path_filename=self._path_lyapunov_exponents)
+        if self._path_divergence_exponents.exists():
+            self._divergence_exponents = load_dataframe(path_filename=self._path_divergence_exponents)
         # variables:
         if self._time_delays is not None:
             self._calculate_time_delay()  # sets self._tau
@@ -139,6 +147,7 @@ class LDSAnalysis:
         if self._path_signals.exists():
             self._signals = load_dataframe(path_filename=self._path_signals)
             return self._signals
+        warnings.warn('Signals not computed yet.')
         return None
 
     @property
@@ -148,6 +157,7 @@ class LDSAnalysis:
         if self._path_time_delays.exists():
             self._time_delays = load_dataframe(path_filename=self._path_time_delays)
             return self._time_delays
+        warnings.warn('Time delays not computed yet.')
         return None
 
     @property
@@ -157,6 +167,7 @@ class LDSAnalysis:
         if self._path_embedding_dimensions.exists():
             self._embedding_dimensions = load_dataframe(path_filename=self._path_embedding_dimensions)
             return self._embedding_dimensions
+        warnings.warn('Embedding dimensions not computed yet.')
         return None
 
     @property
@@ -166,6 +177,7 @@ class LDSAnalysis:
         if self._path_state_spaces.exists():
             self._state_spaces = load_dataframe(path_filename=self._path_state_spaces)
             return self._state_spaces
+        warnings.warn('State spaces not computed yet.')
         return None
 
     @property
@@ -175,6 +187,7 @@ class LDSAnalysis:
         if self._path_divergence_curves.exists():
             self._divergence_curves = load_dataframe(path_filename=self._path_divergence_curves)
             return self._divergence_curves
+        warnings.warn('Divergence curves not computed yet.')
         return None
 
     @property
@@ -182,8 +195,14 @@ class LDSAnalysis:
         return self._fit_interval
 
     @property
-    def results(self) -> pd.DataFrame:
-        return self._lyapunov_exponents
+    def divergence_exponents(self) -> pd.DataFrame | None:
+        if self._divergence_exponents is not None:
+            return self._divergence_exponents
+        if self._path_divergence_exponents.exists():
+            self._divergence_exponents = load_dataframe(path_filename=self._path_divergence_exponents)
+            return self._divergence_exponents
+        warnings.warn('Divergence exponents not computed yet.')
+        return self._divergence_exponents
 
     @property
     def time_delay(self) -> int:
@@ -333,5 +352,21 @@ class LDSAnalysis:
         print(f'{dE_std=:.1f}')
         print(f'Embedding dimension: {self._dE}')
 
-    def set_fit_interval_end(self, end: int, start: int = 0):
+    def set_fit_interval(self, end: int, start: int = 0):
         self._fit_interval = (start, end)
+
+    def compute_divergence_exponents(self):
+        if self._divergence_curves is None:
+            raise ValueError('Divergence curves must be computed first.')
+        if self._fit_interval is None:
+            raise ValueError('Fit interval must be set first.')
+        self._compute_divergence_exponents()
+
+    def _compute_divergence_exponents(self):
+        print('Computing divergence exponents')
+        df_divergence_exponents = process_on_dataframe(df=self._divergence_curves,
+                                                       func=calculate_divergence_exponent,
+                                                       multiprocess=not DEBUG,
+                                                       fit_interval=self._fit_interval)
+        save_dataframe(df=df_divergence_exponents, path_filename=self._path_divergence_exponents)
+        self._divergence_exponents = df_divergence_exponents
