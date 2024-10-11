@@ -11,7 +11,7 @@ from participant import Participant
 from signal_analysis.non_linear.delay_coordinate_embedding import state_space_reconstruction
 from signal_analysis.non_linear.false_nearest_neighbours import false_nearest_neighbours
 from signal_analysis.non_linear.mutual_information import minimum_average_mutual_information
-from utils.convenience import process_on_dataframe, DEBUG
+from utils.convenience import DEBUG, process_on_dataframe
 from utils.file_handling import get_participant_folder_list, load_dataframe, save_dataframe
 
 
@@ -213,6 +213,9 @@ class LDSAnalysis:
             raise ValueError('Time delay could not be calculated.')
         return self._tau
 
+    def set_time_delay(self, tau: int):
+        self._tau = tau
+
     def _calculate_time_delay(self):
         df_time_delays = self._time_delays
         x_values = df_time_delays.apply(lambda col: col.map(lambda d: d.get('x') if isinstance(d, dict) else np.nan))
@@ -233,6 +236,9 @@ class LDSAnalysis:
         if self._dE is None:
             raise ValueError('Embedding dimension could not be calculated.')
         return self._dE
+
+    def set_embedding_dimension(self, dE: int):
+        self._dE = dE
 
     def _calculate_embedding_dimension(self):
         dE_max = self._embedding_dimensions.stack().max().astype(int)
