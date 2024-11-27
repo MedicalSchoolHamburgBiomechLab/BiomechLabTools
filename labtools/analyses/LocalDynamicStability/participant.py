@@ -2,8 +2,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import List
 
+from labtools.utils.file_handling import get_folder_list
 from trial import LDSTrial
-from utils.file_handling import get_folder_list
 
 
 @dataclass
