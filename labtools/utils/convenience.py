@@ -2,56 +2,68 @@ import os
 import sys
 import warnings
 from concurrent.futures import ProcessPoolExecutor
-from sys import platform
 
 import pandas as pd
 
 gettrace = getattr(sys, 'gettrace', None)
-
-if gettrace():
-    DEBUG = True
-else:
-    DEBUG = False
+DEBUG = True if gettrace() else False
 
 
-def get_cpu_core_count(adj: int = -1):
+def get_cpu_core_count(adjust: int = -1):
     if DEBUG:
         return 1
-    if adj > 0:
-        adj = 0
+    if adjust > 0:
         warnings.warn('cpu count to use can only be adjusted by negative values')
-    cnt = os.cpu_count()
-    if 'win' in platform and ('darwin' not in platform):
-        return int(cnt / 2) + adj
-    return cnt + adj
+        adjust = 0
+    cnt = os.cpu_count() or 1  # Default to 1 if None
+    if sys.platform.startswith('win'):
+        return max(int(cnt / 2) + adjust, 1)
+    return max(cnt + adjust, 1)
 
 
-def process_on_dataframe(df: pd.DataFrame, func, multiprocess: bool = True, *args, **kwargs):
-    df_out = pd.DataFrame(columns=df.columns, index=df.index, dtype=object)
+def process_on_dataframe(df: pd.DataFrame, func, multiprocess: bool = True, *args, **kwargs) -> pd.DataFrame:
+    """
+    Apply a function to each element in a DataFrame
+    :param df: DataFrame
+    :param func: function to apply
+    :param multiprocess: use multiprocessing
+    :param args: additional arguments for the function
+    :param kwargs: additional keyword arguments for the function
+    """
     if multiprocess:
-        n_cores = get_cpu_core_count(adj=0)
+        n_cores = get_cpu_core_count(adjust=0)
         with ProcessPoolExecutor(n_cores) as executor:
-            for col in df.columns:
-                for ind, row in df.iterrows():
-                    signal = df.at[ind, col]
-                    if type(signal) == float:
-                        continue
-                    df_out.at[ind, col] = executor.submit(func, signal, *args, **kwargs)
-            for ind, row in df_out.iterrows():
-                for k, v in df_out.loc[ind].items():
-                    if type(v) == float:
-                        continue
-                    try:
-                        df_out.at[ind, k] = v.result()
-                    except Exception as e:
-                        print(f'Error in {ind} {k}')
-                        print(e)
-                        df_out.at[ind, k] = None
+            # Flatten the DataFrame to a Series for easy mapping
+            df_flat = df.stack(future_stack=True)
+            # Submit tasks
+            futures = {executor.submit(func, val, *args, **kwargs): idx for idx, val in df_flat.items()}
+            # Collect results
+            results = {}
+            for future in futures:
+                idx = futures[future]
+                try:
+                    results[idx] = future.result()
+                except Exception as e:
+                    print(f'Error processing {idx}: {e}')
+                    results[idx] = None
+            # Reconstruct the DataFrame
+            df_out = pd.Series(results).unstack()
     else:
-        for col in df.columns:
-            for ind, row in df.iterrows():
-                signal = df.at[ind, col]
-                if type(signal) == float:
-                    continue
-                df_out.at[ind, col] = func(signal, *args, **kwargs)
+        # Define a safe function that catches exceptions
+        def safe_func(x):
+            if pd.notnull(x):
+                try:
+                    return func(x, *args, **kwargs)
+                except Exception as e:
+                    print(f'Error processing value {x}: {e}')
+                    return None
+            else:
+                return x
+
+        # Flatten the DataFrame to a Series
+        df_flat = df.stack(future_stack=True)
+        # Apply the function
+        df_flat = df_flat.map(safe_func)
+        # Reconstruct the DataFrame
+        df_out = df_flat.unstack()
     return df_out
