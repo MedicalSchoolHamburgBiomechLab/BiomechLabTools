@@ -10,7 +10,8 @@ setup(
         'numpy >= 1.26.4',
         'openpyxl >= 3.1.2',
         'pandas >= 2.2.1',
-        'scipy >= 1.14.1'
+        'scipy >= 1.14.1',
+        'h5py >= 3.8.0'
     ],
     author='Dominik Fohrmann',
     author_email='dominik.fohrmann@gmail.com',
