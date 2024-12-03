@@ -11,6 +11,7 @@ from labtools.utils.hdf5 import save_dict_to_hdf5, load_dict_from_hdf5
 def sample_dict():
     return {
         'array': np.array([1, 2, 3]),
+        'array_of_strings': np.array(['a', 'b', 'c']),
         'int': 42,
         'float': 3.14,
         'string': 'Hello, World!',
