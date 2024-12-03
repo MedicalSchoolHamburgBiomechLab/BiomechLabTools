@@ -10,6 +10,7 @@ from labtools.utils.hdf5 import save_dict_to_hdf5, load_dict_from_hdf5
 @pytest.fixture
 def sample_dict():
     return {
+        'None': None,
         'array': np.array([1, 2, 3]),
         'array_of_strings': np.array(['a', 'b', 'c']),
         'int': 42,
@@ -17,6 +18,7 @@ def sample_dict():
         'string': 'Hello, World!',
         'bytes': b'byte string',
         'nested_dict': {
+            'empty': None,
             'nested_array': np.array([[1, 2], [3, 4]]),
             'nested_int': np.int32(7),
         },

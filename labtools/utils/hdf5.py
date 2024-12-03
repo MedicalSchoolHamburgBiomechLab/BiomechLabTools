@@ -9,7 +9,10 @@ def save_dict_to_hdf5(dic, filename):
 
 def recursively_save_dict_contents_to_group(h5file, path, dic):
     for key, item in dic.items():
-        if isinstance(item, np.ndarray):
+        if item is None:
+            grp = h5file.create_group(path + key)
+            grp.attrs['__is_none__'] = True
+        elif isinstance(item, np.ndarray):
             if item.dtype.kind in {'U', 'S'}:
                 # Handle arrays of strings
                 dt = h5py.string_dtype(encoding='utf-8')
@@ -60,8 +63,11 @@ def recursively_load_dict_contents_from_group(h5file, path):
             else:
                 ans[key] = item[()]  # Handles scalars and arrays
         elif isinstance(item, h5py.Group):
-            # Recursively load the group
-            ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
+            if '__is_none__' in item.attrs and item.attrs['__is_none__']:
+                ans[key] = None
+            else:
+                # Recursively load the group
+                ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
         else:
             raise TypeError(f"Unknown item type {type(item)} for key '{key}'")
     return ans
