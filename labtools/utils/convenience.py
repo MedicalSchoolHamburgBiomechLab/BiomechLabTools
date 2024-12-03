@@ -67,3 +67,13 @@ def process_on_dataframe(df: pd.DataFrame, func, multiprocess: bool = True, *arg
         # Reconstruct the DataFrame
         df_out = df_flat.unstack()
     return df_out
+
+
+def limit_to_range(x, min_n, max_n):
+    if min_n > max_n:
+        raise ValueError('min_n must be less than or equal to max_n')
+    if x < min_n:
+        return min_n
+    if x > max_n:
+        return max_n
+    return x

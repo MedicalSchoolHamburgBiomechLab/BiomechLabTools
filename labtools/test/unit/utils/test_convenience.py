@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from labtools.utils.convenience import process_on_dataframe
+from labtools.utils.convenience import process_on_dataframe, limit_to_range
 
 
 @pytest.fixture
@@ -69,3 +69,29 @@ def test_process_on_dataframe_exception_handling():
 
     # Assert that the result matches the expected output
     pd.testing.assert_frame_equal(result, expected_result)
+
+
+def test_limit_to_range():
+    # Valid inputs
+    assert limit_to_range(5, 0, 10) == 5
+    assert limit_to_range(-5, 0, 10) == 0
+    assert limit_to_range(15, 0, 10) == 10
+    assert limit_to_range(5, 0, 5) == 5
+    assert limit_to_range(5, 5, 10) == 5
+
+    # Invalid input order
+    with pytest.raises(ValueError) as excinfo:
+        limit_to_range(5, 10, 0)
+    assert "less than" in str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        limit_to_range(5, 10, 5)
+    assert "less than" in str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        limit_to_range(5, 5, 0)
+    assert "less than" in str(excinfo.value)
+
+    # Edge cases
+    assert limit_to_range(5, 5, 5) == 5
+    assert limit_to_range(5, 0, 0) == 0
