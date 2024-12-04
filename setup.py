@@ -1,4 +1,4 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages, setup
 
 setup(
     name='labtools',
@@ -8,7 +8,7 @@ setup(
         'c3d >= 0.5.2',
         'h5py >= 3.8.0',
         'lxml >= 5.1.0',
-        'matplotlib>=3.8.0',
+        'matplotlib>=3.7.0',
         'numpy >= 1.26.4',
         'openpyxl >= 3.1.2',
         'pandas >= 2.2.1',
