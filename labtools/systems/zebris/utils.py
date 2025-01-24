@@ -32,10 +32,8 @@ def get_force(c3d_data: dict, separate: bool = False):
         raise ValueError('Unexpected number of analog channels found')
 
 
-def get_cop(c3d_data: dict, local: bool = False):
+def get_cop(c3d_data: dict):
     if c3d_data['analog'].shape[1] == 14:
-        if local:
-            raise warnings.warn("LOCAL COP NOT IMPLEMENTED")
         i1 = CHANNEL_INDEX_GAIT_MODE.index('left_foot_cop_x')
         i2 = CHANNEL_INDEX_GAIT_MODE.index('left_foot_cop_y')
         i3 = CHANNEL_INDEX_GAIT_MODE.index('right_foot_cop_x')
