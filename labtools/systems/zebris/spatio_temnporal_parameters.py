@@ -52,6 +52,24 @@ def flight_time_from_events(events: dict, sample_rate: int) -> tuple[float, floa
     return flight_time_avg, flight_time_std
 
 
+def normalized_ground_contact_time_from_events(events: dict) -> tuple[float, float]:
+    """
+    Calculate normalized ground contact time from force events
+    :param events: dict of force events
+    :return: average normalized ground contact time, standard deviation of normalized ground contact times
+    """
+    ics = np.array(events['ic'])
+    tcs = np.array(events['tc'])
+    ngcts = np.array([])
+    for side in [0, 1]:
+        contact_frames = tcs[side::2] - ics[side::2]
+        stride_frames = np.diff(ics[side::2])
+        length = min(len(contact_frames), len(stride_frames))
+        ngcts = np.append(ngcts, contact_frames[:length] / stride_frames[:length])
+    normalized_contact_time_avg = ngcts.mean()
+    normalized_contact_time_std = ngcts.std()
+    return normalized_contact_time_avg, normalized_contact_time_std
+
 def analyze(file: Path, include_std: bool = False):
     data, meta = load_c3d(file)
     sample_rate = data['analog_rate']
@@ -62,15 +80,24 @@ def analyze(file: Path, include_std: bool = False):
     steprate_avg, steprate_std = steprate_from_events(evt, sample_rate)
     contact_time_avg, contact_time_std = contact_time_from_events(evt, sample_rate)
     flight_time_avg, flight_time_std = flight_time_from_events(evt, sample_rate)
+    ngct_avg, ngct_std = normalized_ground_contact_time_from_events(evt)
 
     out = {
         'steps_per_minute': round(steprate_avg, 1),
         'contact_time_ms': int(contact_time_avg * 1000),
-        'flight_time_ms': int(flight_time_avg * 1000)
+        'flight_time_ms': int(flight_time_avg * 1000),
+        'normalized_ground_contact_time': round(ngct_avg, 3)
     }
     if include_std:
         out['steps_per_minute_std'] = round(steprate_std, 1)
         out['contact_time_ms_std'] = int(contact_time_std * 1000)
         out['flight_time_ms_std'] = int(flight_time_std * 1000)
+        out['normalized_ground_contact_time_std'] = round(ngct_std, 3)
 
     return out
+
+
+if __name__ == '__main__':
+    path = Path("/Users/dominikfohrmann/dev/github/BiomechLabTools/labtools/test/data/c3d_testfile_zebris.c3d")
+    out = analyze(path)
+    print(out)
