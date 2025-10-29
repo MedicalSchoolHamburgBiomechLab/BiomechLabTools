@@ -2,8 +2,11 @@ def get_apdm_location_map(hdf5_data: dict) -> dict:
     sensor_data = hdf5_data['Sensors']
     location_map = dict()
     for sensor_id, sensor_data in sensor_data.items():
-        loc = sensor_data['Configuration']['Config Strings'][0][-1].decode('utf-8')
-        location_map[sensor_id] = loc
+        try:
+            loc = sensor_data['Configuration']['Config Strings'][0][-1].decode('utf-8')
+            location_map[sensor_id] = loc
+        except IndexError:
+            location_map[sensor_id] = 'Unknown'
     return location_map
 
 
