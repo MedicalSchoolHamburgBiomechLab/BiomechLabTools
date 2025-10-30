@@ -7,12 +7,12 @@ import numpy as np
 import pandas as pd
 
 from labtools.analyses.LocalDynamicStability.algorithms import rosenstein_divergence
+from labtools.analyses.LocalDynamicStability.participant import Participant
 from labtools.signal_analysis.non_linear.delay_coordinate_embedding import state_space_reconstruction
 from labtools.signal_analysis.non_linear.false_nearest_neighbours import false_nearest_neighbours
 from labtools.signal_analysis.non_linear.mutual_information import minimum_average_mutual_information
 from labtools.utils.convenience import DEBUG, process_on_dataframe
 from labtools.utils.file_handling import get_participant_folder_list, load_dataframe, save_dataframe
-from participant import Participant
 
 
 def calculate_divergence_exponent(divergence_curve: np.ndarray, fit_interval: tuple):
