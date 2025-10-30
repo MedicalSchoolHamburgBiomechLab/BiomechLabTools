@@ -3,6 +3,7 @@ import sys
 import warnings
 from concurrent.futures import ProcessPoolExecutor
 
+import numpy as np
 import pandas as pd
 
 gettrace = getattr(sys, 'gettrace', None)
@@ -77,3 +78,16 @@ def limit_to_range(x, min_n, max_n):
     if x > max_n:
         return max_n
     return x
+
+
+def sample_rate_from_timestamp(t_ms: np.ndarray) -> int:
+    """
+    Simple helper to calculate sample rate based on timestamp.
+    Args:
+        t_ms: timestamp sequence in milliseconds
+    Returns:
+        sample rate in Hz
+    """
+    # Calculate sample rate based on timestamp
+    delta_t = np.median(np.diff(t_ms))
+    return int(1000 / delta_t)
