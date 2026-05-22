@@ -1,4 +1,5 @@
 c3d==0.5.2
+ezc3d==1.7.0
 h5py>=3.8.0
 lxml==5.1.0
 matplotlib>=3.7.0
