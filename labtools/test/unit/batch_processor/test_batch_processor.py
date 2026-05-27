@@ -41,7 +41,7 @@ def test_index_columns_and_size(hierarchy):
         level_names=["subject", "condition", "trial"],
     )
     assert list(bp.index.columns) == ["subject", "condition", "trial", "path"]
-    assert len(bp.index) == 4
+    assert len(bp.index) == 7
 
 
 def test_depth_mismatch_is_skipped_with_warning(hierarchy):
@@ -64,7 +64,7 @@ def test_summary_returns_unique_values(hierarchy):
         level_names=["subject", "condition", "trial"],
     )
     s = bp.summary()
-    assert s["subject"] == ["S01", "S02"]
+    assert s["subject"] == ["S01", "S02", "S03"]
     assert s["condition"] == ["A", "B"]
     assert "trial1" in s["trial"]
 
