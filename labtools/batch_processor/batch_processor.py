@@ -10,6 +10,7 @@ The class is intentionally agnostic about file format or processing:
 user functions receive a file path and return whatever they want.
 Collection and post-processing of results is the caller's responsibility.
 """
+import copy
 import os
 import sys
 import warnings
@@ -235,3 +236,46 @@ class BatchProcessor:
         if self._errors:
             warnings.warn(f"{len(self._errors)} trial(s) failed. See self.errors.")
         return results
+
+    def filter(
+            self,
+            method: str = "keep",
+            inplace: bool = False,
+            **criteria,
+    ) -> Optional["BatchProcessor"]:
+        """Filter the index by level values.
+
+        Parameters
+        ----------
+        method : {"keep", "remove"}, default "keep"
+            Whether the criteria specify which rows to keep or remove.
+        inplace : bool, default False
+            If True, modify this BatchProcessor in place and return None.
+            If False, return a new BatchProcessor and leave this one unchanged.
+        **criteria
+            Level name -> value or list of values. Combined with AND.
+        """
+        if method not in ("keep", "remove"):
+            raise ValueError(f"method must be 'keep' or 'remove', got {method!r}")
+
+        mask = pd.Series(True, index=self._index.index)
+        for level, values in criteria.items():
+            if level not in self._index.columns:
+                raise KeyError(f"Unknown level: {level!r}. Available: {self.level_names}")
+            if not isinstance(values, (list, tuple, set)):
+                values = [values]
+            mask &= self._index[level].isin(values)
+        if method == "remove":
+            mask = ~mask
+
+        filtered_index = self._index[mask].reset_index(drop=True)
+
+        if inplace:
+            self._index = filtered_index
+            self._errors = []
+            return None
+
+        new = copy.copy(self)
+        new._index = filtered_index
+        new._errors = []
+        return new
