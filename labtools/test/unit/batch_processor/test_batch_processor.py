@@ -20,6 +20,8 @@ def hierarchy(tmp_path: Path) -> Path:
         ("S01", "A"): ["trial1.dat", "trial2.dat"],
         ("S01", "B"): ["trial1.dat"],
         ("S02", "A"): ["trial1.dat"],
+        ("S03", "A"): ["trial1.dat"],
+        ("S03", "B"): ["trial1.dat", "trial2.dat"],
     }
     root = tmp_path / "data"
     for (subj, cond), trials in layout.items():
@@ -154,3 +156,65 @@ def test_ensure_output_dir_allows_existing_when_flagged(hierarchy, tmp_path):
         allow_existing_output=True,
     )
     assert bp.ensure_output_dir() == existing
+
+
+def test_filter_remove_subject_inplace(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+
+    to_remove = "S01"
+    expected_remaining = set(bp.index.subject.unique()) - {to_remove}
+
+    bp.filter(subject=[to_remove], method="remove", inplace=True)
+
+    assert to_remove not in bp.index.subject.unique()
+    assert set(bp.index.subject.unique()) == expected_remaining
+
+
+def test_filter_keep_subject_inplace(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+    s_ids_keep = ["S01"]
+    bp.filter(subject=s_ids_keep, inplace=True)  # implicit "method='keep'"
+    assert set(s_ids_keep) == set(bp.index.subject.unique())
+
+
+def test_filter_returns_new_when_not_inplace(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+    original_len = len(bp.index)
+    bp_subset = bp.filter(subject=["S01"])
+
+    # Returned a new object, original untouched.
+    assert bp_subset is not bp
+    assert len(bp.index) == original_len
+    assert set(bp_subset.index.subject.unique()) == {"S01"}
+
+
+def test_filter_inplace_returns_none(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+    result = bp.filter(subject=["S01"], inplace=True)
+    assert result is None
+
+
+def test_filter_unknown_level_raises(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+    with pytest.raises(KeyError):
+        bp.filter(nonexistent_level=["foo"])
