@@ -174,12 +174,13 @@ class BatchProcessor:
         """Apply ``func`` to every row in the index.
 
         The function is called as ``func(row, **kwargs)``, where ``row`` is
-        the index row as a namedtuple (from :meth:`pandas.DataFrame.itertuples`).
-        The row exposes the hierarchy levels (e.g. ``row.participant``,
-        ``row.session``) and the file path as ``row.path``. Return values are
-        collected into a list whose order matches :attr:`index`. Exceptions
-        raised inside ``func`` are caught and recorded in :attr:`errors`; the
-        corresponding result entry is ``None``.
+        the index row as a :class:`pandas.Series` (from
+        :meth:`pandas.DataFrame.iterrows`). The row exposes the hierarchy
+        levels and the file path via item access, e.g. ``row["participant"]``,
+        ``row["session"]``, ``row["path"]``. Return values are collected into
+        a list whose order matches :attr:`index`. Exceptions raised inside
+        ``func`` are caught and recorded in :attr:`errors`; the corresponding
+        result entry is ``None``.
 
         Passing the whole row (rather than just the path) lets ``func`` use the
         hierarchy fields directly — e.g. to look up trial-specific auxiliary
@@ -189,9 +190,9 @@ class BatchProcessor:
         Parameters
         ----------
         func : callable
-            Function taking an index row (namedtuple) as its first positional
-            argument and returning anything. Use ``row.path`` for the file
-            path. Must be a top-level (picklable) function when
+            Function taking an index row (:class:`pandas.Series`) as its first
+            positional argument and returning anything. Use ``row["path"]`` for
+            the file path. Must be a top-level (picklable) function when
             ``multiprocess=True``.
         multiprocess : bool, default False
             Run in parallel via :class:`ProcessPoolExecutor`. Default is
@@ -215,19 +216,23 @@ class BatchProcessor:
         be guarded by ``if __name__ == "__main__":`` to avoid recursive
         process spawning.
 
-        The row is a namedtuple, so ``func`` can read ``row.path`` and any
-        level (``row.participant`` etc.), but cannot mutate the index.
+        Access columns by item (``row["participant"]``), not attribute. With a
+        Series, ``row.name`` and similar would resolve to Series properties
+        rather than your columns, so item access avoids that collision.
         """
         n = len(self._index)
         results: list = [None] * n
         self._errors = []  # reset per call
 
         if not multiprocess:
-            for i, row in enumerate(self._index.itertuples()):
+            # Don't use the Index from iterrows() for lookup.
+            # It may be non-contiguous (after filter/slice) and would misalign results[i].
+            # Use enumerate instead.
+            for i, (_, row) in enumerate(self._index.iterrows()):
                 try:
                     results[i] = func(row, **kwargs)
                 except Exception as e:
-                    self._errors.append((row.path, repr(e)))
+                    self._errors.append((row["path"], repr(e)))
         else:
             if n_workers is None:
                 n_workers = 1 if sys.gettrace() else max(1, (os.cpu_count() or 2) - 1)
@@ -235,14 +240,17 @@ class BatchProcessor:
             with ProcessPoolExecutor(max_workers=n_workers) as ex:
                 future_to_idx = {
                     ex.submit(func, row, **kwargs): i
-                    for i, row in enumerate(self._index.itertuples())
+                    # Same as above: Don't use the Index from iterrows() for lookup.
+                    # It may be non-contiguous (after filter/slice) and would misalign results[i].
+                    # Use enumerate instead.
+                    for i, (_, row) in enumerate(self._index.iterrows())
                 }
                 for fut in as_completed(future_to_idx):
                     i = future_to_idx[fut]
                     try:
                         results[i] = fut.result()
                     except Exception as e:
-                        self._errors.append((self._index.iloc[i].path, repr(e)))
+                        self._errors.append((self._index.iloc[i]["path"], repr(e)))
 
         if self._errors:
             warnings.warn(f"{len(self._errors)} trial(s) failed. See self.errors.")
