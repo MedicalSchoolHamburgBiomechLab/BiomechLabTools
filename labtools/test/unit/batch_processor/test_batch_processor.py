@@ -218,3 +218,14 @@ def test_filter_unknown_level_raises(hierarchy):
     )
     with pytest.raises(KeyError):
         bp.filter(nonexistent_level=["foo"])
+
+
+def test_apply_row_exposes_hierarchy_levels(hierarchy):
+    bp = BatchProcessor(
+        path_root=hierarchy,
+        file_pattern=".dat",
+        level_names=["subject", "condition", "trial"],
+    )
+    results = bp.apply(lambda row: (row.subject, row.condition, row.trial))
+    expected = [(r.subject, r.condition, r.trial) for r in bp.index.itertuples()]
+    assert results == expected
