@@ -171,20 +171,28 @@ class BatchProcessor:
             n_workers: Optional[int] = None,
             **kwargs,
     ) -> list:
-        """Apply ``func`` to every file in the index.
+        """Apply ``func`` to every row in the index.
 
-        The function is called as ``func(path, **kwargs)`` and its
-        return value is collected into a list whose order matches
-        :attr:`index`. Exceptions raised inside ``func`` are caught and
-        recorded in :attr:`errors`; the corresponding result entry is
-        ``None``.
+        The function is called as ``func(row, **kwargs)``, where ``row`` is
+        the index row as a namedtuple (from :meth:`pandas.DataFrame.itertuples`).
+        The row exposes the hierarchy levels (e.g. ``row.participant``,
+        ``row.session``) and the file path as ``row.path``. Return values are
+        collected into a list whose order matches :attr:`index`. Exceptions
+        raised inside ``func`` are caught and recorded in :attr:`errors`; the
+        corresponding result entry is ``None``.
+
+        Passing the whole row (rather than just the path) lets ``func`` use the
+        hierarchy fields directly — e.g. to look up trial-specific auxiliary
+        data keyed by ``(participant, session, condition, trial)`` — without
+        re-parsing them from the path.
 
         Parameters
         ----------
         func : callable
-            Function taking a :class:`pathlib.Path` as its first
-            positional argument and returning anything. Must be a
-            top-level (picklable) function when ``multiprocess=True``.
+            Function taking an index row (namedtuple) as its first positional
+            argument and returning anything. Use ``row.path`` for the file
+            path. Must be a top-level (picklable) function when
+            ``multiprocess=True``.
         multiprocess : bool, default False
             Run in parallel via :class:`ProcessPoolExecutor`. Default is
             serial, which is easier to debug and often faster for
@@ -193,7 +201,7 @@ class BatchProcessor:
             Number of worker processes. Defaults to ``cpu_count() - 1``,
             or 1 if a debugger is attached.
         **kwargs
-            Forwarded to ``func``.
+            Forwarded to ``func`` on every call (identical for all rows).
 
         Returns
         -------
@@ -206,6 +214,9 @@ class BatchProcessor:
         When ``multiprocess=True`` on Windows, the calling script must
         be guarded by ``if __name__ == "__main__":`` to avoid recursive
         process spawning.
+
+        The row is a namedtuple, so ``func`` can read ``row.path`` and any
+        level (``row.participant`` etc.), but cannot mutate the index.
         """
         n = len(self._index)
         results: list = [None] * n
@@ -214,7 +225,7 @@ class BatchProcessor:
         if not multiprocess:
             for i, row in enumerate(self._index.itertuples()):
                 try:
-                    results[i] = func(row.path, **kwargs)
+                    results[i] = func(row, **kwargs)
                 except Exception as e:
                     self._errors.append((row.path, repr(e)))
         else:
@@ -223,7 +234,7 @@ class BatchProcessor:
 
             with ProcessPoolExecutor(max_workers=n_workers) as ex:
                 future_to_idx = {
-                    ex.submit(func, row.path, **kwargs): i
+                    ex.submit(func, row, **kwargs): i
                     for i, row in enumerate(self._index.itertuples())
                 }
                 for fut in as_completed(future_to_idx):

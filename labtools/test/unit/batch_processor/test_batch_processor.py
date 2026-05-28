@@ -75,7 +75,7 @@ def test_apply_serial_returns_in_index_order(hierarchy):
         file_pattern=".dat",
         level_names=["subject", "condition", "trial"],
     )
-    results = bp.apply(lambda p: p.name)
+    results = bp.apply(lambda row: row.path.name)
     assert results == [row.path.name for row in bp.index.itertuples()]
     assert bp.errors == []
 
@@ -87,8 +87,8 @@ def test_apply_catches_exceptions(hierarchy):
         level_names=["subject", "condition", "trial"],
     )
 
-    def boom(path):
-        raise ValueError(f"nope: {path.name}")
+    def boom(row):
+        raise ValueError(f"nope: {row.path.name}")
 
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
