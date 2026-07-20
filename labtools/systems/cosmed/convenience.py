@@ -9,7 +9,7 @@ def extract_cosmed_time_series_data(df_full: pd.DataFrame) -> pd.DataFrame:
     # Step 1: Extract the time series data
     df_time_series = df_full.iloc[:, 9:]
 
-    # Step 2: Merge the first two rows into a single header row
+    # Step 2: Merge the first two rows into a single header row SOME CORRECTION (example)
     merged_headers = [
         f"{col[0]} ({col[1]})" if pd.notna(col[1]) else str(col[0])
         for col in zip(df_time_series.iloc[0], df_time_series.iloc[1])
