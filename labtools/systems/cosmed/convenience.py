@@ -25,15 +25,16 @@ def extract_cosmed_time_series_data(df_full: pd.DataFrame) -> pd.DataFrame:
     df_time_series.dropna(how='all', inplace=True)
 
     for col in df_time_series.columns:
-        if col == 't (s)':
+        if col not in ['t (s)', 'Marker (---)']:
+            df_time_series[col] = pd.to_numeric(df_time_series[col], errors='coerce')
+
+        elif col == 't (s)':
             # Step 1: Convert `datetime.time` to strings if needed
             df_time_series[col] = df_time_series[col].apply(
                 lambda x: x.strftime('%H:%M:%S') if isinstance(x, datetime.time) else x
             )
             # Step 2: Convert the strings to timedeltas
             df_time_series[col] = pd.to_timedelta(df_time_series[col], errors='coerce')
-        else:
-            df_time_series[col] = pd.to_numeric(df_time_series[col], errors='coerce')
 
     return df_time_series
 
