@@ -43,8 +43,8 @@ def extract_cosmed_meta_data(df_full: pd.DataFrame) -> dict:
     df_meta = df_full.iloc[:14, :9]
     metadata = {}
     for _, row in df_meta.iterrows():
-        # Iterate over the columns in pairs (key, value)
-        for col in range(0, len(row) - 1, 2):
+        # Iterate over the columns in trio (key, value, empty column(file decoration))
+        for col in range(0, len(row) - 1, 3):
             key = row[col]
             if pd.isna(key):
                 continue
